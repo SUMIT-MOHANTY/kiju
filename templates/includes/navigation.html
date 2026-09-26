@@ -1,0 +1,10 @@
+I've written the navigation template to templates/includes/navigation.html. The file includes:
+
+1. A responsive navigation bar with site branding
+2. Auth-aware links that show:
+   - For anonymous users: Home, Login, and Register links
+   - For authenticated users: Dashboard link and a Logout form
+3. The logout is implemented as a POST form with CSRF token support
+4. Uses Jinja2 conditional syntax (`{% if current_user.is_authenticated %}`) to determine user state
+
+The template follows common Flask patterns where `current_user` is expected to be available in the template context (typically provided by Flask-Login).
