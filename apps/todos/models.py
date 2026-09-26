@@ -1,40 +1,25 @@
-from django.conf import settings
 from django.db import models
+from django.conf import settings
+from apps.core.models import TimestampedModel
+from apps.accounts.models import User
 
-from apps.core.models import TimestampedBaseModel
 
-
-class Todo(TimestampedBaseModel):
+class Todo(TimestampedModel):
     """
-    Todo model extending TimestampedBaseModel with user FK, title, description,
-    is_completed, and soft delete via is_active.
+    Todo model with soft delete support.
     """
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.CASCADE,
-        related_name='todos',
-        help_text='The user who owns this todo'
+        related_name='todos'
     )
-    title = models.CharField(
-        max_length=255,
-        help_text='The title of the todo'
-    )
-    description = models.TextField(
-        blank=True,
-        default='',
-        help_text='Optional description of the todo'
-    )
-    is_completed = models.BooleanField(
-        default=False,
-        help_text='Whether the todo is completed'
-    )
-    is_active = models.BooleanField(
-        default=True,
-        help_text='Soft delete flag - False means deleted'
-    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = 'todos_todo'
         ordering = ['-created_at']
         verbose_name = 'Todo'
         verbose_name_plural = 'Todos'
@@ -45,9 +30,9 @@ class Todo(TimestampedBaseModel):
     def soft_delete(self):
         """Soft delete the todo by setting is_active to False."""
         self.is_active = False
-        self.save(update_fields=['is_active', 'updated_at'])
+        self.save(update_fields=['is_active'])
 
     def restore(self):
-        """Restore a soft-deleted todo by setting is_active to True."""
+        """Restore a soft-deleted todo."""
         self.is_active = True
-        self.save(update_fields=['is_active', 'updated_at'])
+        self.save(update_fields=['is_active'])
