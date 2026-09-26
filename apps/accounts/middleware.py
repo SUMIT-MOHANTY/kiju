@@ -1,60 +1,68 @@
 """
-Authentication middleware for Django with HTMX support.
+Authentication middleware for session expiry and HTMX-aware auth handling.
 """
 
-import time
+from datetime import datetime, timedelta
+
 from django.conf import settings
 from django.contrib.auth import logout
-from django.http import HttpResponseRedirect
-from django.utils.deprecation import MiddlewareMixin
+from django.http import HttpResponse
+from django.shortcuts import redirect
 
 
-class SessionExpiryMiddleware(MiddlewareMixin):
+class SessionExpiryMiddleware:
     """
-    Middleware to handle session expiry with HTMX-aware redirects.
+    Middleware to handle session timeout.
+    Logs out the user if the session has expired based on
+    SESSION_COOKIE_AGE setting.
     """
 
-    def process_request(self, request):
-        if not hasattr(request, 'user'):
-            return None
+    def __init__(self, get_response):
+        self.get_response = get_response
 
+    def __call__(self, request):
         if request.user.is_authenticated:
             last_activity = request.session.get('last_activity')
-            current_time = time.time()
-
             if last_activity:
-                session_timeout = getattr(settings, 'SESSION_COOKIE_AGE', 3600)
-                if current_time - last_activity > session_timeout:
+                last_activity_time = datetime.fromisoformat(last_activity)
+                session_age = getattr(
+                    settings,
+                    'SESSION_COOKIE_AGE',
+                    3600
+                )
+                if datetime.now() - last_activity_time > timedelta(
+                    seconds=session_age
+                ):
                     logout(request)
-                    request.session_expired = True
-                    return None
+                    return redirect('accounts:login')
 
-            request.session['last_activity'] = current_time
+            request.session['last_activity'] = datetime.now().isoformat()
 
-        return None
-
-    def process_response(self, request, response):
-        if getattr(request, 'session_expired', False):
-            if request.headers.get('HX-Request'):
-                response = HttpResponseRedirect('/login/')
-                response['HX-Redirect'] = '/login/'
-                return response
-
+        response = self.get_response(request)
         return response
 
 
-class HTMXAuthMiddleware(MiddlewareMixin):
+class HTMXAuthMiddleware:
     """
-    Middleware to handle authentication for HTMX requests.
-    Returns HX-Redirect header for 401 responses on HTMX requests.
+    Middleware to handle HTMX-aware authentication redirects.
+    Returns HX-Redirect header for 401 responses on HTMX requests
+    instead of regular redirects.
     """
 
-    def process_response(self, request, response):
-        if response.status_code == 401 or response.status_code == 403:
-            if request.headers.get('HX-Request'):
-                login_url = '/login/'
-                if hasattr(request, 'path'):
-                    login_url = f'/login/?next={request.path}'
-                response['HX-Redirect'] = login_url
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # Check if this is an HTMX request that got redirected to login
+        if (request.headers.get('HX-Request') == 'true' and
+                response.status_code == 302):
+            location = response.get('Location', '')
+            if '/login/' in location:
+                # Convert to HX-Redirect for HTMX handling
+                new_response = HttpResponse(status=401)
+                new_response['HX-Redirect'] = location
+                return new_response
 
         return response

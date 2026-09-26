@@ -1,12 +1,21 @@
 from django.shortcuts import render, redirect
+from apps.accounts.rate_limiter import RateLimiter
 from django.contrib.auth import logout
+from apps.accounts.rate_limiter import RateLimiter
 from django.contrib.auth.views import LoginView
+from apps.accounts.rate_limiter import RateLimiter
 from django.contrib import messages
+from apps.accounts.rate_limiter import RateLimiter
 from django.utils.decorators import method_decorator
+from apps.accounts.rate_limiter import RateLimiter
 from django.views.decorators.cache import never_cache
+from apps.accounts.rate_limiter import RateLimiter
 
 from .forms import UserRegisterForm, LoginForm
-from apps.accounts.rate_limiter import RateLimiter
+
+# Rate limiter instance
+rate_limiter = RateLimiter(max_attempts=5, window_seconds=300)
+
 
 
 def register_view(request):

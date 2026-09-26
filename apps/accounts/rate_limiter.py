@@ -1,73 +1,116 @@
 """
-Rate limiter for authentication attempts using Django's cache framework.
+Rate limiter for authentication attempts.
+Implements IP-based rate limiting with configurable windows.
 """
 
-import hashlib
+import time
+from typing import Optional
+
 from django.core.cache import cache
+from django.http import HttpRequest
 
 
-class LoginRateLimiter:
+class RateLimiter:
     """
-    Rate limiter for login attempts based on IP address.
-    Implements 5 failed attempts per 5 minutes window.
+    IP-based rate limiter using Django cache.
+    Tracks failed login attempts and blocks after threshold.
     """
 
-    MAX_ATTEMPTS = 5
-    WINDOW_SECONDS = 300  # 5 minutes
+    def __init__(
+        self,
+        key_prefix: str = "login_attempts",
+        max_requests: int = 5,
+        window_seconds: int = 300,
+        block_duration_seconds: Optional[int] = None
+    ):
+        """
+        Initialize rate limiter.
 
-    def __init__(self, ip_address):
-        self.ip_address = ip_address
-        self.cache_key = self._get_cache_key()
+        Args:
+            key_prefix: Prefix for cache keys
+            max_requests: Maximum allowed requests within the window
+            window_seconds: Time window in seconds
+            block_duration_seconds: Optional duration to block after
+                exceeding limit
+        """
+        self.key_prefix = key_prefix
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.block_duration_seconds = block_duration_seconds or window_seconds
 
-    def _get_cache_key(self):
-        """Generate a safe cache key from IP address."""
-        ip_hash = hashlib.md5(self.ip_address.encode()).hexdigest()
-        return f"login_attempts_{ip_hash}"
+    def _get_cache_key(self, identifier: str) -> str:
+        """Generate cache key for an identifier."""
+        return f"{self.key_prefix}:{identifier}"
 
-    def get_attempts(self):
-        """Get current number of attempts."""
-        attempts = cache.get(self.cache_key)
-        return attempts if attempts is not None else 0
+    def is_allowed(self, identifier: str) -> bool:
+        """
+        Check if request is allowed for identifier.
 
-    def is_blocked(self):
-        """Check if the IP is currently rate limited."""
-        return self.get_attempts() >= self.MAX_ATTEMPTS
+        Returns True if under rate limit, False if blocked.
+        """
+        cache_key = self._get_cache_key(identifier)
+        attempts = cache.get(cache_key, [])
 
-    def record_attempt(self):
-        """Record a failed login attempt."""
-        attempts = self.get_attempts()
+        now = time.time()
+        cutoff = now - self.window_seconds
 
-        if attempts == 0:
-            # First attempt, set with expiry
-            cache.set(self.cache_key, 1, self.WINDOW_SECONDS)
-        else:
-            # Increment existing counter
-            cache.set(self.cache_key, attempts + 1, self.WINDOW_SECONDS)
+        # Remove old attempts outside window
+        attempts = [t for t in attempts if t > cutoff]
 
-        return attempts + 1
+        # Check if blocked
+        if len(attempts) >= self.max_requests:
+            return False
 
-    def get_remaining_time(self):
-        """Get remaining time until rate limit resets."""
-        ttl = cache.ttl(self.cache_key)
-        return ttl if ttl else self.WINDOW_SECONDS
+        return True
 
-    def clear(self):
-        """Clear rate limit for this IP (e.g., after successful login)."""
-        cache.delete(self.cache_key)
+    def record_attempt(self, identifier: str) -> None:
+        """Record a failed attempt for identifier."""
+        cache_key = self._get_cache_key(identifier)
+        attempts = cache.get(cache_key, [])
 
-    def get_error_message(self):
-        """Get formatted error message with remaining time."""
-        remaining_minutes = (self.get_remaining_time() + 59) // 60
-        return f"Too many attempts, try again in {remaining_minutes} minutes"
+        now = time.time()
+        attempts.append(now)
+
+        # Store with block duration as expiry
+        cache.set(
+            cache_key,
+            attempts,
+            timeout=self.block_duration_seconds
+        )
+
+    def get_remaining_time(self, identifier: str) -> int:
+        """
+        Get remaining block time in minutes.
+
+        Returns 0 if not blocked.
+        """
+        cache_key = self._get_cache_key(identifier)
+        attempts = cache.get(cache_key, [])
+
+        if not attempts or len(attempts) < self.max_requests:
+            return 0
+
+        now = time.time()
+        oldest_attempt = min(attempts)
+        remaining = self.window_seconds - (now - oldest_attempt)
+
+        return max(1, int(remaining / 60))
+
+    def clear_attempts(self, identifier: str) -> None:
+        """Clear all attempts for identifier (e.g., on successful login)."""
+        cache_key = self._get_cache_key(identifier)
+        cache.delete(cache_key)
 
 
-def get_rate_limiter_for_request(request):
-    """Helper function to get rate limiter for a request."""
-    ip_address = request.META.get('REMOTE_ADDR', '')
-    if not ip_address:
-        # Fallback to X-Forwarded-For header
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
-        if x_forwarded_for:
-            ip_address = x_forwarded_for.split(',')[0].strip()
+def get_client_ip(request: HttpRequest) -> str:
+    """
+    Extract client IP from request, handling proxies.
 
-    return LoginRateLimiter(ip_address)
+    Checks X-Forwarded-For header first, then REMOTE_ADDR.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        ip = request.META.get('REMOTE_ADDR', '')
+    return ip
