@@ -6,6 +6,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 
 from .forms import UserRegisterForm, LoginForm
+from apps.accounts.rate_limiter import RateLimiter
 
 
 def register_view(request):
