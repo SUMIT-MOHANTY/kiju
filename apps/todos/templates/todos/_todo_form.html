@@ -1,0 +1,40 @@
+<tr id="todo-{{ todo.id }}" class="{% if todo.is_completed %}completed{% endif %}">
+    <td class="todo-checkbox">
+        <input type="checkbox"
+               {% if todo.is_completed %}checked{% endif %}
+               hx-post="{% url 'todos:toggle' todo.id %}"
+               hx-target="#todo-{{ todo.id }}"
+               hx-swap="outerHTML">
+    </td>
+    <td class="todo-title">
+        <input type="text"
+               name="title"
+               value="{{ todo.title }}"
+               required
+               maxlength="255"
+               class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    </td>
+    <td class="todo-description">
+        <input type="text"
+               name="description"
+               value="{{ todo.description|default:'' }}"
+               class="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    </td>
+    <td class="todo-actions">
+        <button type="button"
+                class="btn btn-sm btn-success"
+                hx-post="{% url 'todos:update' todo.id %}"
+                hx-target="#todo-{{ todo.id }}"
+                hx-swap="outerHTML"
+                hx-include="closest tr">
+            Save
+        </button>
+        <button type="button"
+                class="btn btn-sm btn-secondary"
+                hx-get="{% url 'todos:detail' todo.id %}"
+                hx-target="#todo-{{ todo.id }}"
+                hx-swap="outerHTML">
+            Cancel
+        </button>
+    </td>
+</tr>
