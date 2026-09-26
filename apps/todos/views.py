@@ -1,3 +1,10 @@
+"""
+HTMX-enabled Todo Views
+
+This module provides all views for the Todo dashboard with HTMX integration.
+All endpoints return HTML partials for seamless client-side updates.
+"""
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
 from django.views.generic import ListView
@@ -7,6 +14,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils import timezone
 from django.contrib import messages
 from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
 from .models import Todo
@@ -218,3 +227,132 @@ class TodoDeleteView(LoginRequiredMixin, HtmxMixin, View):
 
         messages.success(request, "Todo deleted successfully")
         return redirect('todos:list')
+
+
+# Legacy function-based views for backward compatibility
+
+@login_required
+def dashboard(request):
+    """
+    Main todo dashboard page.
+    Returns full HTML page with all todos for the authenticated user.
+    """
+    todos = Todo.objects.filter(user=request.user, is_active=True)
+    
+    # Get filter from query params
+    status_filter = request.GET.get('status', 'all')
+    if status_filter == 'completed':
+        todos = todos.filter(is_completed=True)
+    elif status_filter == 'pending':
+        todos = todos.filter(is_completed=False)
+    
+    # Get sort order from query params
+    sort_order = request.GET.get('order', 'newest')
+    if sort_order == 'oldest':
+        todos = todos.order_by('created_at')
+    else:
+        todos = todos.order_by('-created_at')
+    
+    context = {
+        'todos': todos,
+        'status_filter': status_filter,
+        'sort_order': sort_order,
+        'todos_count': todos.count(),
+    }
+    
+    return render(request, 'todos/dashboard.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def edit_todo_form(request, todo_id):
+    """
+    Return the inline edit form for a todo row.
+    HTMX endpoint - returns edit form HTML.
+    """
+    todo = get_object_or_404(Todo, id=todo_id, user=request.user, is_active=True)
+    return render(request, 'todos/partials/todo_row_edit.html', {'todo': todo})
+
+
+@login_required
+@require_http_methods(["GET"])
+def cancel_edit(request, todo_id):
+    """
+    Cancel editing and return to display mode.
+    HTMX endpoint - returns display row HTML.
+    """
+    todo = get_object_or_404(Todo, id=todo_id, user=request.user, is_active=True)
+    return render(request, 'todos/partials/todo_row.html', {'todo': todo})
+
+
+@login_required
+@require_http_methods(["GET"])
+def filter_todos(request):
+    """
+    Filter todos by status.
+    HTMX endpoint - returns filtered list HTML.
+    """
+    status_filter = request.GET.get('status', 'all')
+    todos = Todo.objects.filter(user=request.user, is_active=True)
+    
+    if status_filter == 'completed':
+        todos = todos.filter(is_completed=True)
+    elif status_filter == 'pending':
+        todos = todos.filter(is_completed=False)
+    
+    # Apply current sort
+    sort_order = request.GET.get('order', 'newest')
+    if sort_order == 'oldest':
+        todos = todos.order_by('created_at')
+    else:
+        todos = todos.order_by('-created_at')
+    
+    context = {
+        'todos': todos,
+        'status_filter': status_filter,
+        'sort_order': sort_order,
+    }
+    
+    return render(request, 'todos/partials/todo_list.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def sort_todos(request):
+    """
+    Sort todos by date.
+    HTMX endpoint - returns sorted list HTML.
+    """
+    sort_order = request.GET.get('order', 'newest')
+    todos = Todo.objects.filter(user=request.user, is_active=True)
+    
+    # Apply current filter
+    status_filter = request.GET.get('status', 'all')
+    if status_filter == 'completed':
+        todos = todos.filter(is_completed=True)
+    elif status_filter == 'pending':
+        todos = todos.filter(is_completed=False)
+    
+    if sort_order == 'oldest':
+        todos = todos.order_by('created_at')
+    else:
+        todos = todos.order_by('-created_at')
+    
+    context = {
+        'todos': todos,
+        'status_filter': status_filter,
+        'sort_order': sort_order,
+    }
+    
+    return render(request, 'todos/partials/todo_list.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_todo_row(request, todo_id):
+    """
+    Get a single todo row (for refresh/cancel operations).
+    HTMX endpoint - returns display row HTML.
+    """
+    todo = get_object_or_404(Todo, id=todo_id, user=request.user, is_active=True)
+    return render(request, 'todos/partials/todo_row.html', {'todo': todo})
