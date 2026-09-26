@@ -1,0 +1,38 @@
+<tr id="todo-row-{{ todo.id }}" class="bg-white border-b hover:bg-gray-50">
+    <td class="px-6 py-4" colspan="5">
+        <form hx-post="{% url 'todos:todo_update' todo.id %}" 
+              hx-target="#todo-row-{{ todo.id }}" 
+              hx-swap="outerHTML"
+              class="flex items-center gap-4">
+            {% csrf_token %}
+            <div class="flex-1">
+                <input type="text" 
+                       name="title" 
+                       value="{{ todo.title }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Todo title"
+                       required>
+            </div>
+            <div class="flex-1">
+                <input type="text" 
+                       name="description" 
+                       value="{{ todo.description|default:'' }}" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       placeholder="Description (optional)">
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="submit" 
+                        class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
+                    Save
+                </button>
+                <button type="button" 
+                        hx-get="{% url 'todos:todo_row' todo.id %}" 
+                        hx-target="#todo-row-{{ todo.id }}" 
+                        hx-swap="outerHTML"
+                        class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </td>
+</tr>

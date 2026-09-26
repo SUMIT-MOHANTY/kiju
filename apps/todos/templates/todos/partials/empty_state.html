@@ -1,0 +1,49 @@
+<div class="empty-state">
+  <div class="empty-state-illustration">
+    <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20h9"></path>
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+      <path d="M12 20h9"></path>
+      <line x1="12" y1="20" x2="21" y2="20"></line>
+    </svg>
+  </div>
+  <h2 class="empty-state-title">No todos yet</h2>
+  <p class="empty-state-subtitle">Add your first task and start being productive!</p>
+</div>
+
+<style>
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  .empty-state-illustration {
+    margin-bottom: 1.5rem;
+    color: var(--text-muted, #9ca3af);
+    opacity: 0.7;
+  }
+
+  .empty-state-illustration svg {
+    width: 120px;
+    height: 120px;
+  }
+
+  .empty-state-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary, #374151);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .empty-state-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary, #6b7280);
+    margin: 0;
+    max-width: 280px;
+  }
+</style>

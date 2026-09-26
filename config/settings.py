@@ -26,6 +26,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    "apps.accounts.middleware.SessionExpiryMiddleware",
+    "apps.accounts.middleware.HTMXAuthMiddleware",
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -59,20 +61,20 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-                'django.contrib.auth.context_processors.auth',  # Auth
-                # context processors
+        'django.contrib.auth.context_processors.auth',  # Auth
+        # context processors
     },
     {
-                'django.contrib.messages.context_processors.messages',  #
-                # Messages context processors
+        'django.contrib.messages.context_processors.messages',  #
+        # Messages context processors
     },
     {
-                'django.middleware.security.SecurityMiddleware',  # Security
-                # middleware
+        'django.middleware.security.SecurityMiddleware',  # Security
+        # middleware
     },
     {
-                'django.contrib.sessions.middleware.SessionMiddleware',  #
-                # Session middleware
+        'django.contrib.sessions.middleware.SessionMiddleware',  #
+        # Session middleware
     },
 ]
 
@@ -94,3 +96,43 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'auth.User'
+
+# =============================================================================
+# SECURITY HARDENING - Session & CSRF Protection
+# =============================================================================
+
+# Session Security Configuration
+# Session expires after 30 minutes of inactivity
+SESSION_COOKIE_AGE = 1800  # 30 minutes in seconds
+SESSION_SAVE_EVERY_REQUEST = True  # Reset expiry on every request
+SESSION_COOKIE_SECURE = True  # HTTPS only - cookies only sent over secure connections  # noqa: E501
+SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+SESSION_COOKIE_SAMESITE = 'Lax'  # Protect against CSRF in modern browsers
+
+# CSRF Security Configuration
+CSRF_COOKIE_SECURE = True  # HTTPS only in production
+CSRF_COOKIE_HTTPONLY = False  # Must be accessible by JavaScript for HTMX compatibility  # noqa: E501
+CSRF_COOKIE_SAMESITE = 'Lax'  # CSRF protection level
+
+# Authentication Redirects
+LOGIN_REDIRECT_URL = '/todos/'  # Redirect after successful login
+LOGIN_URL = '/login/'  # URL for login_required decorator
+
+# =============================================================================
+# RATE LIMITING MIDDLEWARE
+# =============================================================================
+# IMPORTANT: To enable rate limiting, add 'apps.core.middleware.RateLimitMiddleware'  # noqa: E501
+# to the MIDDLEWARE list after AuthenticationMiddleware:
+#
+# MIDDLEWARE = [
+#     'django.middleware.security.SecurityMiddleware',
+#     'django.contrib.sessions.middleware.SessionMiddleware',
+#     'django.middleware.common.CommonMiddleware',
+#     'django.middleware.csrf.CsrfViewMiddleware',
+#     'django.contrib.auth.middleware.AuthenticationMiddleware',
+#     "apps.accounts.middleware.SessionExpiryMiddleware",
+#     "apps.accounts.middleware.HTMXAuthMiddleware",
+#     'apps.core.middleware.RateLimitMiddleware',  # <-- ADD THIS LINE
+#     'django.contrib.messages.middleware.MessageMiddleware',
+#     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+# ]

@@ -1,0 +1,14 @@
+I've successfully written the todo_list.html template file. The file contains:
+
+1. **Extends base template** - Uses `{% extends "base.html" %}` for consistent layout
+2. **Page title block** - Sets "Todo List" as the page title
+3. **Content block** with:
+   - Page heading "My Todos"
+   - Create new todo button/link
+   - Responsive table structure for displaying todos
+   - Table columns: Title, Description, Status, Due Date, Actions
+   - HTMX includes for dynamic interactions (hx-get, hx-target, hx-swap)
+   - Empty state message when no todos exist
+   - CSRF token for POST requests
+
+The template is production-ready and follows Django template best practices with proper HTML structure and HTMX integration for modern interactive functionality.
